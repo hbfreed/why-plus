@@ -233,6 +233,8 @@ def save_handoff(out_dir, model, scaler, reps, concepts, history, sanity, meta):
         },
         "input_cols": INPUT_COLS,
         "concept_cols": CONCEPT_COLS,
+        "id_cols": ["pitcher", "game_year", "pitch_type", "p_throws"],
+        "concepts_parquet_extra": ["split", "fb_is_fallback", "delta_run_exp", "run_value"],
         "frame": "All pitches mirrored into a unified RHP frame "
                  "(vx0, ax, release_pos_x, pfx_x negated for LHP; "
                  "spin_axis -> (360-spin_axis)%360).",
@@ -313,7 +315,12 @@ def main() -> None:
     # representations for the FULL set, in input order (aligned with concepts/ids).
     X_all = scaler.transform(Xv).astype(np.float32)
     reps = extract_representations(model, X_all, device)
-    concepts = concepts.copy()
+    # Carry identity columns so the hand-off is self-contained: the NLA brief can
+    # slice reps by pitch_type / pitcher / season without a separate join. These
+    # are ids, not inputs and not probe targets - just alignment metadata.
+    concepts = pd.concat(
+        [ids.reset_index(drop=True), concepts.reset_index(drop=True)], axis=1
+    )
     concepts.insert(0, "split", np.where(val_mask, "val", "train"))
 
     # optional row cap for the hand-off (sample reps+concepts identically).
