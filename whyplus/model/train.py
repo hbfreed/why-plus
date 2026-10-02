@@ -61,13 +61,21 @@ def make_split(ids: pd.DataFrame, how: str, val_frac: float, seed: int) -> np.nd
 # --- training ----------------------------------------------------------------
 def train_model(
     Xtr, ytr, Xva, yva, *, d_repr, epochs, batch_size, lr, weight_decay,
-    huber_delta, patience, device, seed,
+    huber_delta, patience, device, seed, optimizer="adam",
 ):
-    """Train with Huber loss + Adam, early-stopping on val. Returns the model
-    (best weights restored) and a small history dict."""
+    """Train with Huber loss, early-stopping on val. Returns the model (best
+    weights restored) and a small history dict.
+
+    optimizer: 'adam' (brief default; weight decay coupled as L2) or 'adamw'
+    (decoupled weight decay, Loshchilov & Hutter). At weight_decay=1e-5 they are
+    near-identical here; the flag exists so the choice is explicit, not buried.
+    """
     torch.manual_seed(seed)
     model = StuffMLP(d_in=Xtr.shape[1], d_repr=d_repr).to(device)
-    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    opt_cls = {"adam": torch.optim.Adam, "adamw": torch.optim.AdamW}[optimizer]
+    opt = opt_cls(model.parameters(), lr=lr, weight_decay=weight_decay)
+    print(f"  optimizer={optimizer}  lr={lr}  weight_decay={weight_decay}  "
+          f"huber_delta={huber_delta}  batch_size={batch_size}  d_repr={d_repr}")
     # Huber / smooth-L1: delta_run_exp is heavy-tailed from terminal events, so
     # MSE would overweight rare big-RV pitches. Huber is linear past |err|>delta.
     loss_fn = nn.HuberLoss(delta=huber_delta)
@@ -274,6 +282,8 @@ def main() -> None:
     p.add_argument("--batch-size", type=int, default=4096)
     p.add_argument("--lr", type=float, default=1e-3)
     p.add_argument("--weight-decay", type=float, default=1e-5)
+    p.add_argument("--optimizer", choices=["adam", "adamw"], default="adam",
+                   help="adam (brief default, L2-coupled wd) or adamw (decoupled wd).")
     p.add_argument("--huber-delta", type=float, default=1.0)
     p.add_argument("--patience", type=int, default=8)
     p.add_argument("--max-rows", type=int, default=None,
@@ -310,6 +320,7 @@ def main() -> None:
         Xtr, ytr, Xva, yva, d_repr=args.d_repr, epochs=args.epochs,
         batch_size=args.batch_size, lr=args.lr, weight_decay=args.weight_decay,
         huber_delta=args.huber_delta, patience=args.patience, device=device, seed=args.seed,
+        optimizer=args.optimizer,
     )
 
     # representations for the FULL set, in input order (aligned with concepts/ids).

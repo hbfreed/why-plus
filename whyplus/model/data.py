@@ -57,6 +57,14 @@ CONCEPT_SOURCE_COLS = ["pfx_x", "pfx_z"]
 # fall back to a geometric approximation otherwise (handled in features.py).
 OPTIONAL_COLS = ["arm_angle"]
 
+# Extra columns for experiments (Pitching+, whiff, xRV): location, count, batter
+# hand, pitch result, and batted-ball launch / xwOBA-on-contact for the expected-
+# run-value target. NOT used by the brief's Stuff+ model; kept in the cache so
+# experiments don't force a re-pull. Optional-if-present; never drives the dropna
+# (launch_* are NaN on non-contact pitches by design, which is fine).
+EXTRA_COLS = ["plate_x", "plate_z", "balls", "strikes", "stand", "description",
+              "launch_speed", "launch_angle", "estimated_woba_using_speedangle"]
+
 # Default smoke window: ~1 week of April 2025 (~50k pitches). Cheap end-to-end
 # run + an egress probe for the cloud env.
 SMOKE_START = "2025-04-01"
@@ -79,7 +87,7 @@ def _statcast():
 def _keep_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Subset to the column contract; tolerate optional columns being absent."""
     cols = ID_COLS + RAW_COLS + [LABEL_COL] + CONCEPT_SOURCE_COLS
-    present_optional = [c for c in OPTIONAL_COLS if c in df.columns]
+    present_optional = [c for c in OPTIONAL_COLS + EXTRA_COLS if c in df.columns]
     cols = cols + present_optional
     missing = [c for c in cols if c not in df.columns]
     if missing:

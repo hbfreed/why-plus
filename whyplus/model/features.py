@@ -66,6 +66,10 @@ def mirror_lhp(df: pd.DataFrame) -> pd.DataFrame:
         # pfx_x is a concept source, not a model input, but must share the frame.
         if "pfx_x" in df.columns:
             df.loc[is_lhp, "pfx_x"] = -df.loc[is_lhp, "pfx_x"]
+        # plate_x (location) for the Pitching+ bake-off: keep location in the same
+        # mirrored frame as the physics. Harmless to the Stuff+ model (no plate_x).
+        if "plate_x" in df.columns:
+            df.loc[is_lhp, "plate_x"] = -df.loc[is_lhp, "plate_x"]
     print(f"  mirrored {n:,} LHP pitches into the RHP frame")
     return df
 
